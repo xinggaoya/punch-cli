@@ -51,7 +51,7 @@ https://demo.example.com -> localhost:8080
 ## 环境要求
 
 - Rust 1.94 或更新版本
-- 已安装 `cloudflared`
+- 未安装 `cloudflared` 也可以，`punch` 会在首次需要时自动下载到工作目录缓存
 - 目标域名已接入 Cloudflare
 - 一个具备以下权限的 Cloudflare API Token
 
@@ -90,6 +90,14 @@ target/release/punch
 ```
 
 ### 3. 安装 `cloudflared`
+
+这一步现在是可选的。
+
+如果系统里没有 `cloudflared`，`punch` 会在首次执行 `doctor` 或启动 Tunnel 时自动下载到：
+
+```text
+$PUNCH_HOME/cache/cloudflared/
+```
 
 Linux 可直接下载官方发布版本：
 

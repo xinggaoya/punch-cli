@@ -45,6 +45,19 @@ impl PunchDirs {
         self.home.join("cache")
     }
 
+    pub fn cloudflared_dir(&self) -> PathBuf {
+        self.cache_dir().join("cloudflared")
+    }
+
+    pub fn cloudflared_binary_path(&self) -> PathBuf {
+        #[cfg(windows)]
+        let binary = "cloudflared.exe";
+        #[cfg(not(windows))]
+        let binary = "cloudflared";
+
+        self.cloudflared_dir().join(binary)
+    }
+
     pub fn state_file(&self) -> PathBuf {
         self.home.join("state.json")
     }

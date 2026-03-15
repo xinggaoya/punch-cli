@@ -25,6 +25,14 @@
 
 ## 第 1 步：安装 `cloudflared`
 
+这一步现在不是强制的。
+
+如果系统里没有 `cloudflared`，`punch` 会在首次执行 `punch doctor` 或启动 Tunnel 时自动下载到：
+
+```text
+$PUNCH_HOME/cache/cloudflared/
+```
+
 ### Linux
 
 ```bash

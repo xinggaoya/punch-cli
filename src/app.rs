@@ -97,7 +97,7 @@ impl App {
 
     async fn print_version(&self) -> Result<()> {
         println!("punch {}", env!("CARGO_PKG_VERSION"));
-        match Cloudflared::detect().and_then(|client| client.version()) {
+        match Cloudflared::detect(&self.dirs).and_then(|client| client.version()) {
             Ok(version) => println!("cloudflared {version}"),
             Err(_) => println!("cloudflared 未安装"),
         }
@@ -144,7 +144,7 @@ impl App {
 
     async fn launch(&self, target: &str, options: LaunchOptions) -> Result<()> {
         let target = TunnelTarget::parse(target)?;
-        let cloudflared = Cloudflared::detect()?;
+        let cloudflared = Cloudflared::ensure_available(&self.dirs).await?;
         let token = self.load_or_prompt_token().await?;
         let cf = CloudflareClient::new(token)?;
 
@@ -390,8 +390,13 @@ impl App {
         println!("────────────");
         println!("home: {}", self.dirs.home().display());
 
-        match Cloudflared::detect() {
-            Ok(client) => println!("{} cloudflared: {}", "✓".green(), client.version()?),
+        match Cloudflared::ensure_available(&self.dirs).await {
+            Ok(client) => println!(
+                "{} cloudflared: {} ({})",
+                "✓".green(),
+                client.version()?,
+                client.path().display()
+            ),
             Err(error) => println!("{} cloudflared: {error:#}", "✗".red()),
         }
 
