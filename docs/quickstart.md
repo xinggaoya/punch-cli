@@ -175,6 +175,8 @@ punch demo.example.com:8443 --https --insecure
 按 Ctrl+C 停止
 ```
 
+前台模式停止后，这次临时会话会从本地状态中自动清理，不会继续留在 `punch ls` 里。
+
 ## 第 6 步：验证公网访问
 
 ```bash

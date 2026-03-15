@@ -41,12 +41,32 @@ impl Cloudflared {
             .with_context(|| format!("打开日志文件失败: {}", log_path.display()))?;
         let stderr = stdout.try_clone().context("复制日志文件句柄失败")?;
 
-        let child = std::process::Command::new(&self.path)
+        let mut command = std::process::Command::new(&self.path);
+        command
             .args(["tunnel", "--no-autoupdate", "run", "--token", tunnel_token])
+            .stdin(Stdio::null())
             .stdout(Stdio::from(stdout))
-            .stderr(Stdio::from(stderr))
-            .spawn()
-            .context("启动 cloudflared 失败")?;
+            .stderr(Stdio::from(stderr));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+
+            // 为后台进程创建独立进程组，避免跟随当前前台会话一起收信号。
+            command.process_group(0);
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+
+            command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        }
+
+        let child = command.spawn().context("启动 cloudflared 失败")?;
 
         Ok(child.id())
     }
@@ -158,4 +178,45 @@ pub async fn tail_log_file(path: &Path, lines: usize) -> Result<()> {
         println!("{line}");
     }
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+
+    use tempfile::tempdir;
+
+    use super::Cloudflared;
+
+    #[test]
+    fn detached_process_keeps_running_after_spawn_returns() {
+        let temp = tempdir().expect("temp dir should be created");
+        let script_path = temp.path().join("cloudflared");
+        let log_path = temp.path().join("cloudflared.log");
+
+        fs::write(&script_path, "#!/bin/sh\nsleep 5\n").expect("script should be written");
+
+        let mut permissions = fs::metadata(&script_path)
+            .expect("metadata should be available")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("permissions should be set");
+
+        let client = Cloudflared {
+            path: script_path.clone(),
+        };
+        let pid = client
+            .spawn_detached("fake-token", &log_path)
+            .expect("detached process should start");
+
+        assert!(
+            std::path::Path::new(&format!("/proc/{pid}")).exists(),
+            "detached process should still exist"
+        );
+
+        let _ = std::process::Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .status();
+    }
 }

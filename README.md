@@ -160,11 +160,19 @@ punch demo.example.com:8443 --https
 
 前台模式下按 `Ctrl+C` 停止。
 
+前台模式是临时会话：
+
+- 运行中会写入本地状态，便于 `punch stop` / `punch logs`
+- 收到 `Ctrl+C` 或进程退出后，会自动从本地状态里移除
+- 只有后台 `--detach` 模式会长期保留在 `punch ls` 里
+
 ### 3. 后台启动
 
 ```bash
 punch demo.example.com:8080 --detach
 ```
+
+后台模式会为 `cloudflared` 创建独立进程组，并把日志重定向到本地文件，适合作为持续运行的托管方式。
 
 如果你希望给 shell 注入公网地址：
 

@@ -280,14 +280,8 @@ impl App {
         let log_result = log_task.await.context("等待日志任务失败")?;
         let _ = log_result;
 
-        let mut stopped = record.clone();
-        stopped.pid = None;
-        stopped.status = match &wait_result {
-            Ok(_) => TunnelStatus::Stopped,
-            Err(_) => TunnelStatus::Failed,
-        };
-        stopped.last_seen_at = Some(Utc::now());
-        self.state.upsert(stopped)?;
+        // 前台运行只在活跃期间登记，退出后直接清理本地状态，避免 ls 混入临时会话。
+        let _ = self.state.remove(&record.domain)?;
 
         wait_result
     }
@@ -332,6 +326,9 @@ impl App {
     async fn stop_tunnel(&self, domain: &str) -> Result<()> {
         match self.state.stop_process(domain)? {
             Some(record) => {
+                if !record.detached {
+                    let _ = self.state.remove(domain)?;
+                }
                 println!("{} 已停止 {}", "✓".green(), record.domain);
                 Ok(())
             }
